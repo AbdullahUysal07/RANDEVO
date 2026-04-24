@@ -4,10 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from '@/components/DashboardLayout';
 import AppointmentModal from '@/components/AppointmentModal';
-import { TrendingUp, Clock, CheckCircle2, MessageCircle, Mail } from 'lucide-react';
+import { TrendingUp, Clock, CheckCircle2, MessageCircle, Mail, MoreHorizontal } from 'lucide-react';
 
-// NEO'NUN NOTU: Sistem şu an 'shram-events' adına sabitlendi. 
-// Başka bir esnaf girdiğinde bu isim otomatik onun adına dönüşecek.
 const CURRENT_BUSINESS_SLUG = 'shram-events';
 
 export default function DashboardHome() {
@@ -17,90 +15,94 @@ export default function DashboardHome() {
 
   useEffect(() => {
     fetchAppointments();
-    
-    // Anlık bildirim sistemi
     const channel = supabase.channel('global-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
         fetchAppointments(); 
       }).subscribe();
-      
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // İŞTE O BULAMADIĞIN FİLTRE KODU BURADA:
   const fetchAppointments = async () => {
     const { data } = await supabase
       .from('appointments')
       .select('*')
       .eq('appointment_date', todayStr)
-      .eq('business_slug', CURRENT_BUSINESS_SLUG); // SADECE BU İŞLETMENİN VERİSİNİ ÇEK
-
+      .eq('business_slug', CURRENT_BUSINESS_SLUG);
     if (data) setAppointments(data.sort((a, b) => a.time.localeCompare(b.time)));
   };
 
   return (
     <DashboardLayout onOpenModal={() => setIsModalOpen(true)}>
-      <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
+      <div className="space-y-8 animate-in fade-in duration-500">
         
-        {/* LUNA VE MAX'İN FİNANS KARTLARI */}
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tighter">İyi Günler, Patron! 👋</h1>
-            <p className="text-[12px] text-slate-500 font-bold mt-1">İşte bugünün operasyon özeti.</p>
+        {/* KARŞILAMA ALANI */}
+        <div>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tighter">İyi Günler, Patron! 👋</h1>
+          <p className="text-[12px] text-slate-500 font-bold mt-1">Sistemin kalbi tıkır tıkır atıyor.</p>
+        </div>
+
+        {/* LUNA'NIN YENİ PREMIUM FİNANS KARTLARI */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* KOYU TEMA CİRO KARTI */}
+          <div className="bg-slate-900 rounded-[2rem] p-6 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500"><TrendingUp size={120} /></div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Aylık Ciro</p>
+            <h3 className="text-2xl md:text-3xl font-black mt-2 tracking-tighter text-white">₺45.200</h3>
+            <div className="mt-6 flex items-center space-x-1 text-[9px] font-bold bg-white/10 w-max px-3 py-1.5 rounded-full text-emerald-400 backdrop-blur-sm border border-white/5">
+              <TrendingUp size={12} /> <span>Geçen aya göre %12 arttı</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-[2rem] p-5 text-white shadow-xl shadow-emerald-200/50 relative overflow-hidden">
-              <div className="absolute -right-4 -top-4 opacity-20"><TrendingUp size={100} /></div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Aylık Ciro</p>
-              <h3 className="text-2xl font-black mt-2 tracking-tighter">₺45.200</h3>
-              <div className="mt-4 flex items-center space-x-1 text-[9px] font-bold bg-white/20 w-max px-2 py-1 rounded-full">
-                <TrendingUp size={10} /> <span>Geçen aya göre %12 arttı</span>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm relative">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Beklenen</p>
-              <h3 className="text-2xl font-black mt-2 tracking-tighter text-slate-800">₺12.500</h3>
-              <p className="text-[10px] font-bold text-slate-400 mt-4 leading-tight">Bu haftaki onaylanmış<br/>randevulara göre.</p>
-            </div>
+          {/* SADE VE ŞIK BEKLENEN GELİR KARTI */}
+          <div className="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm relative group hover:border-blue-200 transition-colors">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Beklenen Gelir</p>
+            <h3 className="text-2xl md:text-3xl font-black mt-2 tracking-tighter text-slate-800">₺12.500</h3>
+            <p className="text-[10px] font-bold text-slate-400 mt-6 leading-tight border-t border-slate-100 pt-3">
+              Onaylanmış<br/>randevulara göre.
+            </p>
           </div>
         </div>
 
-        {/* BUGÜNÜN RANDEVULARI */}
+        {/* LUNA'NIN YENİ RANDEVU LİSTESİ */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-black text-slate-800 tracking-tighter">Bugünün Randevuları</h2>
-            <span className="bg-blue-100 text-blue-600 font-black text-[10px] px-3 py-1 rounded-full">{appointments.length} Kayıt</span>
+            <span className="bg-slate-100 text-slate-600 font-black text-[10px] px-3 py-1 rounded-full">{appointments.length} Kayıt</span>
           </div>
 
           <div className="space-y-3 pb-6">
             {appointments.length === 0 ? (
-              <div className="text-center p-10 border-2 border-dashed border-slate-200 rounded-[2rem]">
-                <Clock className="mx-auto text-slate-300 mb-3" size={32} />
+              <div className="text-center p-12 border-2 border-dashed border-slate-200 rounded-[2rem] bg-slate-50/50">
+                <Clock className="mx-auto text-slate-300 mb-4" size={36} />
                 <p className="text-slate-400 font-bold text-sm">Bugün için henüz randevu yok.</p>
               </div>
             ) : (
               appointments.map((app) => (
-                <div key={app.id} className="bg-white border border-slate-100 p-4 rounded-[1.5rem] shadow-sm flex items-center justify-between group transition-all hover:shadow-md">
+                <div key={app.id} className="bg-white border border-slate-200 p-4 rounded-[1.5rem] flex items-center justify-between group hover:border-blue-300 hover:shadow-md transition-all">
+                  
                   <div className="flex items-center space-x-4">
-                    <div className="bg-slate-50 text-blue-600 font-black text-lg px-4 py-3 rounded-2xl border border-slate-100 shadow-inner">
+                    {/* SAAT KUTUSU (Daha soft renkler) */}
+                    <div className="bg-blue-50 text-blue-600 font-black text-lg w-16 h-14 flex items-center justify-center rounded-2xl border border-blue-100/50">
                       {app.time}
                     </div>
                     <div>
-                      <h4 className="font-black text-slate-800 uppercase tracking-tight">{app.name}</h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{app.service || 'Genel Hizmet'}</p>
+                      <h4 className="font-black text-slate-800 uppercase tracking-tight text-sm md:text-base">{app.name}</h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{app.service || 'Genel Hizmet'}</p>
                     </div>
                   </div>
+
                   <div className="flex flex-col items-end space-y-2">
-                    <div className="flex items-center space-x-1 bg-emerald-50 text-emerald-600 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider">
-                      <CheckCircle2 size={10} /> <span>Onaylandı</span>
+                    {/* YENİ NESİL ETİKET */}
+                    <div className="flex items-center space-x-1 text-emerald-600 text-[10px] font-black uppercase tracking-wider">
+                      <CheckCircle2 size={12} /> <span className="hidden sm:inline">Onaylandı</span>
                     </div>
-                    <div className="flex space-x-2 text-slate-300">
-                      <MessageCircle size={14} className="text-blue-400" />
-                      <Mail size={14} className="text-slate-300" />
+                    {/* MİNİMAL İKONLAR */}
+                    <div className="flex items-center space-x-3 text-slate-300">
+                      <MessageCircle size={14} className="hover:text-blue-500 cursor-pointer transition-colors" />
+                      <Mail size={14} className="hover:text-blue-500 cursor-pointer transition-colors" />
                     </div>
                   </div>
+
                 </div>
               ))
             )}
@@ -109,28 +111,14 @@ export default function DashboardHome() {
 
       </div>
       
-      {/* KAYIT MODALI (YENİ RANDEVU EKLERKEN DE İŞLETME ID'SİNİ BASAR) */}
       <AppointmentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
         initialTime="09:00"
         onSave={async (newApp: any) => {
-          // Randevuyu veritabanına atarken senin işletmene bağlar
-          await supabase.from('appointments').insert([{ 
-            ...newApp, 
-            appointment_date: todayStr,
-            business_slug: CURRENT_BUSINESS_SLUG 
-          }]);
-          
-          // Müşteriyi telefon numarasıyla CRM'e atarken senin işletmene bağlar
-          await supabase.from('customers').insert([{ 
-            name: newApp.name, 
-            phone: newApp.phone,
-            business_slug: CURRENT_BUSINESS_SLUG
-          }]).onConflict('phone').ignore();
-          
-          setIsModalOpen(false); 
-          fetchAppointments();
+          await supabase.from('appointments').insert([{ ...newApp, appointment_date: todayStr, business_slug: CURRENT_BUSINESS_SLUG }]);
+          await supabase.from('customers').insert([{ name: newApp.name, phone: newApp.phone, business_slug: CURRENT_BUSINESS_SLUG }]).onConflict('phone').ignore();
+          setIsModalOpen(false); fetchAppointments();
         }} 
       />
     </DashboardLayout>
