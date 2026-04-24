@@ -189,15 +189,28 @@ export default function CalendarPage() {
         onClose={() => setIsModalOpen(false)}
         initialDate={modalData.date}
         initialTime={modalData.time} // Tıklanan saati forma aktarır
-        onSave={async (newApp: any) => {
-          await supabase.from('appointments').insert([{ 
-            ...newApp, 
-            appointment_date: newApp.date || modalData.date, 
-            business_slug: CURRENT_BUSINESS_SLUG 
-          }]);
-          setIsModalOpen(false); 
-          fetchAppointments();
-        }} 
+       onSave={async (newApp: any) => {
+  try {
+    // Neo: Veritabanına gönderilen her bilginin tam olduğundan emin oluyoruz
+    const { error } = await supabase.from('appointments').insert([{ 
+      name: newApp.name,
+      phone: newApp.phone,
+      time: newApp.time,
+      service: newApp.service, // Seçilen hizmet
+      appointment_date: newApp.date || modalData.date, 
+      business_slug: CURRENT_BUSINESS_SLUG // 'shram-events' kimliği
+    }]);
+
+    if (error) {
+      alert("⚠️ Veritabanı Hatası: " + error.message);
+    } else {
+      setIsModalOpen(false); 
+      fetchAppointments(); // Listeyi anında tazele
+    }
+  } catch (err) {
+    console.error("Beklenmedik hata:", err);
+  }
+}}
       />
     </DashboardLayout>
   );
