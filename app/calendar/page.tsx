@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from '@/components/DashboardLayout';
 import AppointmentModal from '@/components/AppointmentModal';
-import { ChevronLeft, ChevronRight, Calendar as CalIcon, Plus, X, Clock, CheckCircle2, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalIcon, Plus, Trash2, X, Clock, User, Scissors, CheckCircle2 } from 'lucide-react';
 
 const CURRENT_BUSINESS_SLUG = 'shram-events';
 
@@ -12,22 +12,25 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [selectedApp, setSelectedApp] = useState<any>(null); // Düzenleme/Silme için seçilen randevu
   const [selectedDateForModal, setSelectedDateForModal] = useState(new Date().toISOString().split('T')[0]);
 
-  // HAFTALIK GÜNLERİ HESAPLA (7 Günlük Blok)
-  const weekDates = Array.from({ length: 7 }, (_, i) => {
-    const start = new Date(currentDate);
-    const day = start.getDay();
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-    const d = new Date(start.setDate(diff));
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+  // HAFTALIK 7 GÜNLÜK BLOK HESAPLAMA (Pazartesi Başlangıçlı)
+  const getWeekDates = (baseDate: Date) => {
+    const day = baseDate.getDay();
+    const diff = baseDate.getDate() - day + (day === 0 ? -6 : 1);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(baseDate);
+      d.setDate(diff + i);
+      return d;
+    });
+  };
+
+  const weekDates = getWeekDates(currentDate);
 
   useEffect(() => {
     fetchAppointments();
-    const channel = supabase.channel('global-sync')
+    const channel = supabase.channel('calendar-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
         fetchAppointments(); 
       }).subscribe();
@@ -46,106 +49,73 @@ export default function CalendarPage() {
     if (data) setAppointments(data.sort((a, b) => a.time.localeCompare(b.time)));
   };
 
-  // AY SEÇİMİ İŞLEMİ
-  const handleMonthSelect = (monthIndex: number) => {
-    const newDate = new Date(currentDate.getFullYear(), monthIndex, 1);
-    setCurrentDate(newDate);
-    setIsMonthPickerOpen(false);
-  };
-
-  const openNewAppointment = (dateStr: string) => {
+  const handleDayClick = (dateStr: string) => {
     setSelectedDateForModal(dateStr);
     setIsModalOpen(true);
   };
 
+  const deleteAppointment = async (id: string) => {
+    if (confirm("Bu randevuyu silmek ve veritabanından kaldırmak istiyor musunuz?")) {
+      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      if (!error) {
+        setSelectedApp(null);
+        fetchAppointments();
+      }
+    }
+  };
+
   return (
     <DashboardLayout onOpenModal={() => setIsModalOpen(true)}>
-      <div className="flex flex-col h-full animate-in fade-in duration-500 pb-20 md:pb-0 relative">
+      <div className="h-full flex flex-col space-y-4 animate-in fade-in duration-500 pb-24 md:pb-0">
         
-        {/* ÜST BAR: AY SEÇİCİ VE NAVİGASYON */}
-        <div className="flex items-center justify-between bg-white p-4 md:p-6 rounded-[2.5rem] border border-slate-200 shadow-sm mb-6">
-          <div className="relative">
-            <button 
-              onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
-              className="flex items-center space-x-2 bg-slate-50 px-5 py-3 rounded-2xl hover:bg-slate-100 transition-all active:scale-95 border border-slate-100"
-            >
-              <span className="text-lg font-black text-slate-800 uppercase italic tracking-tighter">
-                {weekDates[0].toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
-              </span>
-              <ChevronDown size={18} className={`text-blue-600 transition-transform ${isMonthPickerOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* AY SEÇME MENÜSÜ (DROPDOWN) */}
-            {isMonthPickerOpen && (
-              <div className="absolute top-16 left-0 w-64 bg-white border border-slate-200 rounded-[2rem] shadow-2xl z-[60] p-4 grid grid-cols-2 gap-2 animate-in zoom-in-95">
-                {Array.from({ length: 12 }, (_, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => handleMonthSelect(i)}
-                    className="py-3 text-[11px] font-black uppercase tracking-widest text-slate-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all"
-                  >
-                    {new Date(0, i).toLocaleDateString('tr-TR', { month: 'long' })}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex bg-slate-50 rounded-2xl p-1 border border-slate-100 shadow-inner">
-            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-3 hover:bg-white rounded-xl text-blue-600 transition-all active:scale-90"><ChevronLeft size={22} /></button>
-            <div className="px-4 flex items-center text-[10px] font-black uppercase tracking-widest text-slate-400 border-x border-slate-200">Hafta</div>
-            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-3 hover:bg-white rounded-xl text-blue-600 transition-all active:scale-90"><ChevronRight size={22} /></button>
+        {/* ÜST NAVİGASYON (HAFTALIK KAYDIRMA) */}
+        <div className="flex items-center justify-between bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm">
+          <h2 className="text-sm font-black text-slate-800 uppercase italic tracking-tighter">
+            {weekDates[0].toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
+          </h2>
+          <div className="flex bg-slate-50 rounded-xl p-1 border border-slate-100">
+            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 hover:bg-white rounded-lg text-blue-600 transition-all"><ChevronLeft size={20} /></button>
+            <button onClick={() => setCurrentDate(new Date())} className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-500 border-x border-slate-200">Bugün</button>
+            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2 hover:bg-white rounded-lg text-blue-600 transition-all"><ChevronRight size={20} /></button>
           </div>
         </div>
 
-        {/* HAFTALIK KAYDIRILABİLİR ALAN */}
-        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-10 custom-scrollbar p-2">
+        {/* 7 GÜNLÜK TEK EKRAN IZGARA (GRID) */}
+        <div className="grid grid-cols-7 gap-1 h-full min-h-[500px]">
           {weekDates.map((date, index) => {
             const dateStr = date.toISOString().split('T')[0];
             const isToday = new Date().toISOString().split('T')[0] === dateStr;
             const dayApps = appointments.filter(a => a.appointment_date === dateStr);
 
             return (
-              <div key={index} className={`min-w-[300px] md:min-w-[350px] snap-center flex-shrink-0 flex flex-col rounded-[3rem] border-2 transition-all duration-500 ${isToday ? 'border-blue-500 shadow-2xl shadow-blue-100' : 'border-slate-100 bg-white'}`}>
-                
+              <div 
+                key={index} 
+                className={`flex flex-col border-r last:border-r-0 border-slate-100 relative ${isToday ? 'bg-blue-50/30' : 'bg-white'}`}
+                onClick={(e) => e.target === e.currentTarget && handleDayClick(dateStr)}
+              >
                 {/* GÜN BAŞLIĞI */}
-                <div className={`p-6 text-center border-b rounded-t-[2.8rem] ${isToday ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-800'}`}>
-                  <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-70">{date.toLocaleDateString('tr-TR', { weekday: 'long' })}</p>
-                  <p className="text-4xl font-black mt-1 tracking-tighter">{date.getDate()}</p>
+                <div className={`text-center py-3 border-b ${isToday ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'}`}>
+                  <p className="text-[8px] font-black uppercase tracking-tighter">{date.toLocaleDateString('tr-TR', { weekday: 'short' })}</p>
+                  <p className="text-sm font-black">{date.getDate()}</p>
                 </div>
 
-                {/* İÇERİK: TIKLAYINCA RANDEVU OLUŞTURUR */}
-                <div 
-                  className="p-4 flex-1 flex flex-col gap-3 min-h-[400px] cursor-pointer"
-                  onClick={(e) => { if(e.target === e.currentTarget) openNewAppointment(dateStr); }}
-                >
-                  {dayApps.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-emerald-500/40 group hover:text-emerald-500 transition-all">
-                      <div className="w-16 h-16 rounded-full border-2 border-dashed border-current flex items-center justify-center mb-3">
-                        <Plus size={32} />
-                      </div>
-                      <p className="font-black uppercase tracking-widest text-xs">Müsait Gün</p>
-                      <p className="text-[9px] font-bold mt-1 uppercase">Kayıt için dokun</p>
-                    </div>
-                  ) : (
+                {/* RANDEVULAR VE BOŞ ALAN */}
+                <div className="flex-1 p-1 space-y-1 overflow-y-auto custom-scrollbar min-h-[300px]">
+                  {dayApps.length > 0 ? (
                     dayApps.map(app => (
-                      <div key={app.id} className="bg-slate-50 border border-slate-100 p-4 rounded-[1.8rem] shadow-sm flex flex-col relative group hover:border-blue-300 transition-all">
-                        <span className="text-[10px] font-black text-blue-600 mb-1">{app.time}</span>
-                        <h4 className="font-black text-slate-800 uppercase text-sm leading-tight">{app.name}</h4>
-                        <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase italic">{app.service}</p>
-                        <CheckCircle2 size={14} className="absolute top-4 right-4 text-emerald-500 opacity-50" />
+                      <div 
+                        key={app.id} 
+                        onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}
+                        className="bg-blue-100/50 border border-blue-200 p-2 rounded-xl cursor-pointer hover:bg-blue-200/50 transition-all"
+                      >
+                        <p className="text-[8px] font-black text-blue-700">{app.time}</p>
+                        <p className="text-[9px] font-black text-slate-800 leading-tight uppercase truncate">{app.name.split(' ')[0]}</p>
                       </div>
                     ))
-                  )}
-                  
-                  {/* GÜNÜN ALTINA EKLEME BUTONU */}
-                  {dayApps.length > 0 && (
-                    <button 
-                      onClick={() => openNewAppointment(dateStr)}
-                      className="mt-auto w-full py-4 border-2 border-dashed border-slate-100 rounded-[1.5rem] text-slate-300 hover:text-blue-500 hover:border-blue-200 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Plus size={16}/> <span className="text-[10px] font-black uppercase">Ekle</span>
-                    </button>
+                  ) : (
+                    <div className="h-full flex items-center justify-center opacity-20 pointer-events-none">
+                       <Plus size={16} className="text-slate-300" />
+                    </div>
                   )}
                 </div>
               </div>
@@ -154,6 +124,43 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {/* RANDEVU YÖNETİM MODALI (DÜZENLE / SİL) */}
+      {selectedApp && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-end md:items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tighter">Randevu Detayı</h3>
+              <button onClick={() => setSelectedApp(null)} className="p-2 bg-slate-100 rounded-xl text-slate-400"><X size={20}/></button>
+            </div>
+            
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl">
+                <User size={20} className="text-blue-600" />
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">Müşteri</p>
+                  <p className="font-black text-slate-800 uppercase">{selectedApp.name}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl">
+                <Clock size={20} className="text-blue-600" />
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">Zaman</p>
+                  <p className="font-black text-slate-800 uppercase">{selectedApp.time} | {selectedApp.appointment_date}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => { alert("Düzenleme paneli yakında!"); }} className="flex-1 bg-slate-100 text-slate-600 font-black py-4 rounded-2xl text-xs uppercase italic">Düzenle</button>
+              <button onClick={() => deleteAppointment(selectedApp.id)} className="flex-1 bg-red-50 text-red-600 font-black py-4 rounded-2xl text-xs uppercase italic flex items-center justify-center gap-2">
+                <Trash2 size={16}/> SİL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* YENİ KAYIT MODALI */}
       <AppointmentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
