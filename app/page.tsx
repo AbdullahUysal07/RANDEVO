@@ -111,14 +111,27 @@ export default function DashboardHome() {
 
       </div>
       
+  {/* KAYIT MODALI */}
       <AppointmentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
         initialTime="09:00"
         onSave={async (newApp: any) => {
-          await supabase.from('appointments').insert([{ ...newApp, appointment_date: todayStr, business_slug: CURRENT_BUSINESS_SLUG }]);
-          await supabase.from('customers').insert([{ name: newApp.name, phone: newApp.phone, business_slug: CURRENT_BUSINESS_SLUG }]).onConflict('phone').ignore();
-          setIsModalOpen(false); fetchAppointments();
+          // NEO'NUN MÜDAHALESİ: Artık tarih direkt formdan (newApp.date) geliyor!
+          await supabase.from('appointments').insert([{ 
+            ...newApp, 
+            appointment_date: newApp.date, 
+            business_slug: CURRENT_BUSINESS_SLUG 
+          }]);
+          
+          await supabase.from('customers').insert([{ 
+            name: newApp.name, 
+            phone: newApp.phone, 
+            business_slug: CURRENT_BUSINESS_SLUG 
+          }]).onConflict('phone').ignore();
+          
+          setIsModalOpen(false); 
+          fetchAppointments();
         }} 
       />
     </DashboardLayout>
