@@ -189,32 +189,34 @@ export default function CalendarPage() {
         onClose={() => setIsModalOpen(false)}
         initialDate={modalData.date}
         initialTime={modalData.time} // Tıklanan saati forma aktarır
-       onSave={async (newApp: any) => {
-  // NEO'nun Zırhlı Kayıt Fonksiyonu
+      onSave={async (newApp: any) => {
   if (!newApp.name || !newApp.service) {
-    alert("⚠️ Hata: İsim ve Hizmet seçimi zorunludur!");
+    alert("⚠️ Lütfen İsim ve Hizmet seçiniz!");
     return;
   }
 
-  const { data, error } = await supabase
-    .from('appointments')
-    .insert([{ 
-      name: newApp.name, 
-      phone: newApp.phone, 
-      time: newApp.time, 
-      service: newApp.service,
-      appointment_date: newApp.date, 
-      business_slug: CURRENT_BUSINESS_SLUG 
-    }])
-    .select();
+  // 1. Randevuyu Kaydet
+  const { error: appError } = await supabase.from('appointments').insert([{ 
+    name: newApp.name, 
+    phone: newApp.phone, 
+    time: newApp.time, 
+    service: newApp.service,
+    appointment_date: newApp.date, 
+    business_slug: CURRENT_BUSINESS_SLUG 
+  }]);
 
-  if (error) {
-    console.error("Veritabanı Kayıt Hatası:", error);
-    alert(`❌ Kayıt Başarısız!\nHata: ${error.message}\nKod: ${error.code}`);
+  // 2. Müşteriyi CRM'e İşle (Otomatik Senkronizasyon)
+  const { error: custError } = await supabase.from('customers').upsert({ 
+    name: newApp.name, 
+    phone: newApp.phone, 
+    business_slug: CURRENT_BUSINESS_SLUG 
+  }, { onConflict: 'phone, business_slug' });
+
+  if (appError || custError) {
+    alert("❌ Kayıt sırasında bir pürüz çıktı!");
   } else {
-    console.log("Kayıt Başarılı:", data);
     setIsModalOpen(false); 
-    fetchAppointments(); // Sayfayı tazele
+    fetchAppointments();
   }
 }}
       />
