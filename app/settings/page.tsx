@@ -1,53 +1,56 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Settings, Plus, Trash2, Tag, Banknote, Globe, Palette } from 'lucide-react';
+import ServiceSettings from '@/components/ServiceSettings'; // Az önce oluşturduğumuz bileşen
+import { Settings, Bell, Lock, Globe, ShieldCheck } from 'lucide-react';
 
 export default function SettingsPage() {
-  const [services, setServices] = useState<any[]>([]);
-  const [newName, setNewName] = useState('');
-  const [newPrice, setNewPrice] = useState('');
-
-  useEffect(() => { fetchServices(); }, []);
-
-  const fetchServices = async () => {
-    const { data } = await supabase.from('services').select('*').order('name');
-    if (data) setServices(data);
-  };
-
-  const addService = async () => {
-    if (!newName || !newPrice) return;
-    const { data } = await supabase.from('services').insert([{ name: newName, price: Number(newPrice) }]).select();
-    if (data) { setServices([...services, data[0]]); setNewName(''); setNewPrice(''); }
-  };
-
   return (
-    <DashboardLayout onOpenModal={() => {}}>
-      <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in">
-        <header>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Sistem Ayarları</h1>
-          <p className="text-blue-600 text-[10px] font-black uppercase tracking-[0.4em] mt-2">Mağaza ve Hizmet Parametreleri</p>
-        </header>
-
-        <section className="bg-white border border-slate-100 p-8 rounded-[3rem] shadow-sm space-y-6">
-          <h3 className="text-xl font-black text-slate-800 uppercase italic flex items-center gap-2"><Tag size={20}/> Yeni Hizmet Ekle</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Hizmet Adı" className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl outline-none focus:border-blue-600 font-bold" />
-            <input value={newPrice} onChange={(e) => setNewPrice(e.target.value)} type="number" placeholder="Fiyat (₺)" className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl outline-none focus:border-blue-600 font-bold" />
-            <button onClick={addService} className="bg-slate-900 text-white font-black rounded-2xl py-4 shadow-lg shadow-slate-200">+ LİSTEYE EKLE</button>
+    <DashboardLayout>
+      <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+        
+        {/* AYARLAR ÜST BAŞLIK */}
+        <div className="bg-slate-900 rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 opacity-10"><Settings size={200} /></div>
+          <div className="relative z-10">
+            <h1 className="text-3xl font-black uppercase italic tracking-tighter">İşletme Ayarları</h1>
+            <p className="text-slate-400 font-bold text-sm mt-2 flex items-center gap-2">
+              <ShieldCheck size={16} className="text-emerald-500" /> 
+              Sistem Tercihlerini ve Hizmetlerini Buradan Yönet
+            </p>
           </div>
+        </div>
+
+        {/* LUNA'NIN ÖZEL DOKUNUŞU: HİZMET YÖNETİMİ ALANI */}
+        <section className="space-y-4">
+          <div className="flex items-center space-x-2 px-2">
+            <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
+            <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">Hizmet Menüsü Yapılandırması</h2>
+          </div>
+          
+          {/* İŞTE O BİLEŞENİ BURAYA YERLEŞTİRDİK */}
+          <ServiceSettings />
         </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {services.map((s) => (
-            <div key={s.id} className="flex items-center justify-between p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
-              <span className="font-bold text-slate-800 uppercase italic">{s.name}</span>
-              <span className="font-black text-emerald-600">₺{s.price}</span>
+        {/* DİĞER AYARLAR (GELECEKTEKİ GÜNCELLEMELER İÇİN TASLAK) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-50 cursor-not-allowed">
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-slate-100 text-slate-400 rounded-2xl"><Bell size={20}/></div>
+              <span className="font-black text-slate-800 uppercase italic">Bildirim Ayarları</span>
             </div>
-          ))}
+            <span className="text-[10px] font-black bg-slate-100 px-3 py-1 rounded-full uppercase">Yakında</span>
+          </div>
+
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-slate-100 text-slate-400 rounded-2xl"><Lock size={20}/></div>
+              <span className="font-black text-slate-800 uppercase italic">Güvenlik & Şifre</span>
+            </div>
+            <span className="text-[10px] font-black bg-slate-100 px-3 py-1 rounded-full uppercase">Yakında</span>
+          </div>
         </div>
+
       </div>
     </DashboardLayout>
   );
