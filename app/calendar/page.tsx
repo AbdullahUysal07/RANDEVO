@@ -196,28 +196,34 @@ export default function CalendarPage() {
         onClose={() => setIsModalOpen(false)}
         initialDate={modalData.date}
         initialTime={modalData.time}
-        onSave={async (newApp: any) => {
-          // 1. Randevuyu Kaydet
-          const { error: appError } = await supabase.from('appointments').insert([{ 
-            ...newApp, 
-            business_slug: CURRENT_BUSINESS_SLUG 
-          }]);
+       // app/calendar/page.tsx içindeki onSave bölümünü bul ve bununla değiştir:
 
-          // 2. Müşteriyi CRM Rehberine Ekle veya Güncelle (Neo'nun Müdahalesi)
-          const { error: custError } = await supabase.from('customers').upsert({ 
-            name: newApp.name, 
-            phone: newApp.phone, 
-            business_slug: CURRENT_BUSINESS_SLUG 
-          }, { onConflict: 'phone, business_slug' });
+onSave={async (newApp: any) => {
+  // NEO: Formdaki 'date' bilgisini veritabanındaki 'appointment_date' sütununa eşliyoruz
+  const { error: appError } = await supabase.from('appointments').insert([{ 
+    name: newApp.name, 
+    phone: newApp.phone, 
+    time: newApp.time, 
+    service: newApp.service,
+    appointment_date: newApp.date, // <--- KRİTİK DÜZELTME BURASI
+    business_slug: CURRENT_BUSINESS_SLUG 
+  }]);
 
-          if (appError || custError) {
-            const msg = appError?.message || custError?.message;
-            alert("❌ Veritabanı Hatası: " + msg);
-          } else {
-            setIsModalOpen(false); 
-            fetchAppointments();
-          }
-        }} 
+  // Müşteriyi CRM'e işle (Aynı mantıkla)
+  const { error: custError } = await supabase.from('customers').upsert({ 
+    name: newApp.name, 
+    phone: newApp.phone, 
+    business_slug: CURRENT_BUSINESS_SLUG 
+  }, { onConflict: 'phone, business_slug' });
+
+  if (appError || custError) {
+    const msg = appError?.message || custError?.message;
+    alert("❌ Veritabanı Hatası: " + msg);
+  } else {
+    setIsModalOpen(false); 
+    fetchAppointments();
+  }
+}}
       />
     </DashboardLayout>
   );
