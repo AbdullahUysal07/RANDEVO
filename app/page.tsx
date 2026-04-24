@@ -150,10 +150,23 @@ export default function DashboardHome() {
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
         onSave={async (newApp: any) => {
-          await supabase.from('appointments').insert([{ ...newApp, business_slug: CURRENT_BUSINESS_SLUG }]);
-          setIsModalOpen(false); 
-          fetchDashboardData();
-        }} 
+  // 1. Randevuyu Deftere Kaydet
+  await supabase.from('appointments').insert([{ 
+    ...newApp, 
+    business_slug: CURRENT_BUSINESS_SLUG 
+  }]);
+  
+  // 2. Müşteriyi CRM Rehberine Ekle veya Güncelle (Upsert Mantığı)
+  // Bu kod sayesinde numara zaten varsa hata vermez, yoksa yeni kayıt açar.
+  await supabase.from('customers').upsert({ 
+    name: newApp.name, 
+    phone: newApp.phone, 
+    business_slug: CURRENT_BUSINESS_SLUG 
+  }, { onConflict: 'phone, business_slug' });
+  
+  setIsModalOpen(false); 
+  fetchDashboardData();
+}}
       />
     </DashboardLayout>
   );
