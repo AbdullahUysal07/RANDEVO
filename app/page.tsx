@@ -111,14 +111,26 @@ export default function DashboardHome() {
 
       </div>
       
-      <AppointmentModal 
+   <AppointmentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
-        initialTime="09:00"
         onSave={async (newApp: any) => {
-          await supabase.from('appointments').insert([{ ...newApp, appointment_date: todayStr, business_slug: CURRENT_BUSINESS_SLUG }]);
-          await supabase.from('customers').insert([{ name: newApp.name, phone: newApp.phone, business_slug: CURRENT_BUSINESS_SLUG }]).onConflict('phone').ignore();
-          setIsModalOpen(false); fetchAppointments();
+          // 1. Randevuyu kaydet
+          await supabase.from('appointments').insert([{ 
+            ...newApp, 
+            appointment_date: newApp.date, 
+            business_slug: CURRENT_BUSINESS_SLUG 
+          }]);
+          
+          // 2. Müşteriyi CRM'e ekle (HATALI KISIM KALDIRILDI)
+          await supabase.from('customers').insert([{ 
+            name: newApp.name, 
+            phone: newApp.phone, 
+            business_slug: CURRENT_BUSINESS_SLUG 
+          }]);
+          
+          setIsModalOpen(false); 
+          fetchAppointments();
         }} 
       />
     </DashboardLayout>
