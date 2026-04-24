@@ -4,43 +4,24 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from '@/components/DashboardLayout';
 import AppointmentModal from '@/components/AppointmentModal';
-import { ChevronLeft, ChevronRight, Calendar as CalIcon, Plus, Trash2, Clock } from 'lucide-react';
+import { TrendingUp, Clock, CheckCircle2, MessageCircle, Mail, AlertCircle } from 'lucide-react';
 
-const WORKING_HOURS = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
-
-export default function AdminDashboard() {
+export default function DashboardHome() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [prefilledData, setPrefilledData] = useState({ time: '09:00', dayIndex: 0 });
-
-  const weekDates = Array.from({ length: 7 }, (_, i) => {
-    const start = new Date(currentDate);
-    const day = start.getDay();
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-    const d = new Date(start.setDate(diff));
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+  const [todayStr] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    fetchAppointments();
-    
-    // BİLDİRİM SİSTEMİ
+    fetchTodayAppointments();
     const channel = supabase.channel('global-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload) => {
-        console.log("Yeni Hareket!", payload);
-        fetchAppointments(); 
-      })
-      .subscribe();
-
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        fetchTodayAppointments(); 
+      }).subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [currentDate]);
+  }, []);
 
-  const fetchAppointments = async () => {
-    const startStr = weekDates[0].toISOString().split('T')[0];
-    const endStr = weekDates[6].toISOString().split('T')[0];
-    const { data } = await supabase.from('appointments').select('*').gte('appointment_date', startStr).lte('appointment_date', endStr);
+  const fetchTodayAppointments = async () => {
+    const { data } = await supabase.from('appointments').select('*').eq('appointment_date', todayStr);
     if (data) setAppointments(data.sort((a, b) => a.time.localeCompare(b.time)));
   };
 
@@ -48,90 +29,90 @@ export default function AdminDashboard() {
     <DashboardLayout onOpenModal={() => setIsModalOpen(true)}>
       <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
         
-        {/* ÜST NAVİGASYON (Mobil Uyumlu) */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white p-4 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg"><CalIcon size={24} /></div>
-            <div>
-              <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase italic tracking-tighter leading-none">
-                {weekDates[0].toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
-              </h2>
-              <p className="text-[10px] text-blue-600 font-black uppercase tracking-[0.3em] mt-1">Sistem Aktif</p>
+        {/* LUNA'NIN KARŞILAMA VE MAX'İN FİNANS KARTLARI */}
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tighter">İyi Günler, Patron! 👋</h1>
+            <p className="text-[12px] text-slate-500 font-bold mt-1">İşte bugünün operasyon özeti.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* AYLIK CİRO KARTI */}
+            <div className="bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-[2rem] p-5 text-white shadow-xl shadow-emerald-200/50 relative overflow-hidden">
+              <div className="absolute -right-4 -top-4 opacity-20"><TrendingUp size={100} /></div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Aylık Ciro</p>
+              <h3 className="text-2xl font-black mt-2 tracking-tighter">₺45.200</h3>
+              <div className="mt-4 flex items-center space-x-1 text-[9px] font-bold bg-white/20 w-max px-2 py-1 rounded-full">
+                <TrendingUp size={10} /> <span>Geçen aya göre %12 arttı</span>
+              </div>
+            </div>
+
+            {/* BEKLENEN GELİR KARTI */}
+            <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm relative">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Beklenen</p>
+              <h3 className="text-2xl font-black mt-2 tracking-tighter text-slate-800">₺12.500</h3>
+              <p className="text-[10px] font-bold text-slate-400 mt-4 leading-tight">Bu haftaki onaylanmış<br/>randevulara göre.</p>
             </div>
           </div>
-          <div className="flex bg-slate-50 rounded-2xl p-1.5 border border-slate-100 w-full md:w-auto justify-between">
-            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2.5 hover:bg-white rounded-xl text-slate-400 transition-all"><ChevronLeft size={20} /></button>
-            <button onClick={() => setCurrentDate(new Date())} className="px-6 text-[11px] font-black uppercase tracking-widest text-slate-600 border-x border-slate-200 w-full md:w-auto text-center">Bugün</button>
-            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2.5 hover:bg-white rounded-xl text-slate-400 transition-all"><ChevronRight size={20} /></button>
-          </div>
         </div>
 
-        {/* TAKVİM IZGARASI (Mobilde Sağa-Sola Kaydırılabilir) */}
-        <div className="overflow-x-auto pb-4 custom-scrollbar">
-          <div className="grid grid-cols-7 gap-3 md:gap-4 min-w-[900px] md:min-w-full">
-            {weekDates.map((date, index) => {
-              const dateStr = date.toISOString().split('T')[0];
-              const isToday = new Date().toISOString().split('T')[0] === dateStr;
+        {/* LUNA'NIN RANDEVU LİSTESİ */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black text-slate-800 tracking-tighter">Bugünün Randevuları</h2>
+            <span className="bg-blue-100 text-blue-600 font-black text-[10px] px-3 py-1 rounded-full">{appointments.length} Kayıt</span>
+          </div>
 
-              return (
-                <div key={index} className="space-y-3 md:space-y-4">
-                  <div className={`p-4 md:p-5 text-center rounded-[2rem] border transition-all ${isToday ? 'bg-blue-600 text-white shadow-xl' : 'bg-white border-slate-100'}`}>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70">{date.toLocaleDateString('tr-TR', { weekday: 'short' })}</p>
-                    <p className="text-xl font-black mt-1">{date.getDate()}</p>
+          <div className="space-y-3 pb-6">
+            {appointments.length === 0 ? (
+              <div className="text-center p-10 border-2 border-dashed border-slate-200 rounded-[2rem]">
+                <Clock className="mx-auto text-slate-300 mb-3" size={32} />
+                <p className="text-slate-400 font-bold text-sm">Bugün için henüz randevu yok.</p>
+              </div>
+            ) : (
+              appointments.map((app) => (
+                <div key={app.id} className="bg-white border border-slate-100 p-4 rounded-[1.5rem] shadow-sm flex items-center justify-between group transition-all hover:shadow-md">
+                  
+                  <div className="flex items-center space-x-4">
+                    {/* SAAT */}
+                    <div className="bg-slate-50 text-blue-600 font-black text-lg px-4 py-3 rounded-2xl border border-slate-100 shadow-inner">
+                      {app.time}
+                    </div>
+                    {/* MÜŞTERİ BİLGİSİ */}
+                    <div>
+                      <h4 className="font-black text-slate-800 uppercase tracking-tight">{app.name}</h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{app.service || 'Genel Hizmet'}</p>
+                    </div>
                   </div>
 
-                  <div className="space-y-2 md:space-y-3">
-                    {WORKING_HOURS.map((hour) => {
-                      const app = appointments.find(a => a.appointment_date === dateStr && a.time.startsWith(hour.split(':')[0]));
-
-                      return (
-                        <div 
-                          key={hour} 
-                          onClick={() => !app && (setPrefilledData({time: hour, dayIndex: index}), setIsModalOpen(true))}
-                          className={`min-h-[100px] md:min-h-[110px] rounded-[2rem] border transition-all p-3 md:p-4 flex flex-col justify-center relative group ${
-                            app 
-                            ? `bg-blue-50 border-blue-200 shadow-sm` 
-                            : 'bg-slate-200/30 border-slate-200/50 border-dashed hover:bg-blue-50/50 cursor-pointer'
-                          }`}
-                        >
-                          {app ? (
-                            <div className="animate-in fade-in zoom-in">
-                              <button 
-                                onClick={async (e) => { e.stopPropagation(); if(confirm("Silinsin mi?")) { await supabase.from('appointments').delete().eq('id', app.id); fetchAppointments(); } }}
-                                className="absolute -top-3 -right-3 w-8 h-8 bg-white text-red-500 rounded-full flex items-center justify-center shadow-xl border border-red-50 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all hover:scale-110 z-50"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                              <span className="text-[10px] font-black text-blue-600 block mb-1 uppercase italic">{app.time}</span>
-                              <p className="font-black text-[11px] md:text-[12px] leading-tight uppercase tracking-tighter text-slate-900">{app.name}</p>
-                              <p className="text-[8px] font-bold mt-1.5 opacity-50 italic uppercase">{app.service}</p>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center space-y-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
-                              <span className="text-[10px] font-black text-slate-400 italic">{hour}</span>
-                              <Plus size={14} className="text-blue-400 hidden md:block" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="flex flex-col items-end space-y-2">
+                    {/* DURUM ETİKETİ (Örnek: Şimdilik hepsi onaylandı görünüyor, veritabanına eklenebilir) */}
+                    <div className="flex items-center space-x-1 bg-emerald-50 text-emerald-600 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider">
+                      <CheckCircle2 size={10} /> <span>Onaylandı</span>
+                    </div>
+                    {/* OTOMASYON İKONLARI */}
+                    <div className="flex space-x-2 text-slate-300">
+                      <MessageCircle size={14} className="text-blue-400" />
+                      <Mail size={14} className="text-slate-300" />
+                    </div>
                   </div>
+
                 </div>
-              );
-            })}
+              ))
+            )}
           </div>
         </div>
+
       </div>
       
       <AppointmentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
-        initialTime={prefilledData.time}
-        initialDayIndex={prefilledData.dayIndex}
+        initialTime="09:00"
         onSave={async (newApp: any) => {
-          await supabase.from('appointments').insert([{ ...newApp, appointment_date: weekDates[newApp.dayIndex].toISOString().split('T')[0] }]);
+          await supabase.from('appointments').insert([{ ...newApp, appointment_date: todayStr }]);
           await supabase.from('customers').insert([{ name: newApp.name, phone: newApp.phone }]).onConflict('phone').ignore();
-          setIsModalOpen(false); fetchAppointments();
+          setIsModalOpen(false); fetchTodayAppointments();
         }} 
       />
     </DashboardLayout>
